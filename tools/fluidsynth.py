@@ -37,7 +37,7 @@ BUILD_OPTIONS = {
     "opensles": False,  # Android OpenSL ES audio backend.
     # Core synthesis
     "threads": True,  # Multithreading, including parallel voice synthesis.
-    "openmp": False,  # OpenMP acceleration for synthesis/SoundFont processing.
+    "openmp": True,  # OpenMP acceleration for synthesis/SoundFont processing.
     "unicode": True,  # Unicode support, particularly relevant on Windows.
     "native-dls": False,  # Native DLS support; unrelated to audio device access.
     "signalsmith": True,  # Signalsmith DSP limiter/reverb; useful for normal DSP.
