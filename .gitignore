@@ -49,3 +49,6 @@ __pycache__
 # Cmake
 cmake-build*
 CMakeUserPresets.json
+
+# project
+build/

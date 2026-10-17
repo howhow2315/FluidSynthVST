@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
+"""Build static FluidSynth with CMake as an SCons dependency."""
 
 from __future__ import annotations
 
 import os
 import shlex
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -15,8 +15,8 @@ BUILD_OPTIONS = {
     # Linux
     "alsa": False,  # Linux ALSA audio device backend.
     "jack": False,  # JACK audio server backend.
-    "pipewire": False,  # Linux PipeWire audio server backend.
-    "pulseaudio": False,  # PulseAudio audio server backend.
+    "pipewire": False,  # Linux PipeWire audio device backend.
+    "pulseaudio": False,  # PulseAudio audio device backend.
     "oss": False,  # OSS audio device backend.
     "systemd": False,  # Linux systemd integration; unnecessary for library use.
     "dbus": False,  # D-Bus integration; unnecessary for library use.
@@ -91,15 +91,7 @@ def target_cmake_args(platform: str, arch: str) -> list[str]:
         )
 
     elif platform == "linux":
-        linux_arches = {
-            "x86_64",
-            "x86_32",
-            "arm64",
-            "arm32",
-            "rv64",
-            "ppc32",
-            "ppc64",
-        }
+        linux_arches = {"x86_64", "x86_32", "arm64", "arm32", "rv64", "ppc32", "ppc64"}
         if arch not in linux_arches:
             raise ValueError(f"Unsupported Linux architecture: {arch}")
 
@@ -136,6 +128,7 @@ def build_cmake(
     source: Path, build: Path, install: Path, platform: str, arch: str
 ) -> None:
     build.mkdir(parents=True, exist_ok=True)
+    install.mkdir(parents=True, exist_ok=True)
 
     configure = [
         "cmake",
@@ -155,10 +148,7 @@ def build_cmake(
         # "-DCMAKE_CXX_FLAGS=-std=c++17 -include algorithm",
     ]
 
-    build_options = {
-        **BUILD_OPTIONS,
-        **PLATFORM_BUILD_OPTIONS.get(platform, {}),
-    }
+    build_options = {**BUILD_OPTIONS, **PLATFORM_BUILD_OPTIONS.get(platform, {})}
 
     configure.extend(
         f"-Denable-{name}={cmake_bool(value)}" for name, value in build_options.items()
@@ -168,16 +158,7 @@ def build_cmake(
     configure.extend(target_cmake_args(platform, arch))
 
     run(*configure)
-    run(
-        "cmake",
-        "--build",
-        str(build),
-        "--target",
-        "libfluidsynth",
-        "--parallel",
-        "--config",
-        "Release",
-    )
+    run("cmake", "--build", str(build), "--parallel", "--config", "Release")
     run("cmake", "--install", str(build), "--config", "Release")
 
 
@@ -192,6 +173,7 @@ def build_fluidsynth(target, source, env) -> None:
     # CMake caches from being reused across platforms and architectures.
     build_root = install.parent / "fluidsynth-build"
     build = build_root / f"{platform}-{arch}"
+
     build_cmake(source_path, build, install, platform, arch)
 
     # Validate the actual artifacts declared by the SCons caller.
@@ -213,7 +195,7 @@ def fluidsynth(env, target, source):
 
 
 def exists(env) -> bool:
-    return True
+    return env.Detect("cmake") is not None
 
 
 def generate(env) -> None:
