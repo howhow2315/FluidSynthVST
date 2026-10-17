@@ -26,7 +26,7 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/base/ustring.h"
 
-#include "../include/fluidsynthvst.h"
+#include "../fluidsynthvst.h"
 
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
