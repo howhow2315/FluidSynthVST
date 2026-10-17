@@ -1,3 +1,6 @@
 [submodule "VST3_SDK"]
 	path = library/VST3_SDK
 	url = https://github.com/steinbergmedia/vst3sdk.git
+[submodule "FluidSynth"]
+	path = library/fluidsynth
+	url = https://github.com/FluidSynth/fluidsynth.git
