@@ -168,6 +168,9 @@ Processor::Processor() : mSynth(NULL), mChangeSoundFont(false), mLoadingThread(0
 void Processor::syncedLoadSoundFont() {
   char fileName[FILENAME_MAX];
   GetPath(fileName, FILENAME_MAX);
+
+  // Move from Contents/MacOS to Contents/Resources.
+  PathAppend(fileName, FILENAME_MAX, "../Resources");
   PathAppend(fileName, FILENAME_MAX, mLoadedFile.text8());
 
   fluid_synth_all_notes_off(mSynth, -1);
@@ -285,11 +288,11 @@ void Processor::writeAudio(Vst::ProcessData& data, int32 start_sample, int32 end
     return;
   }
 
-  if(mBypass){
-    memset(data.outputs[0].channelBuffers32[0] + start_sample, 0, sizeof(float) * (end_sample - start_sample));
-    memset(data.outputs[0].channelBuffers32[1] + start_sample, 0, sizeof(float) * (end_sample - start_sample));
-    return;
-  }
+  // if(mBypass){
+  //   memset(data.outputs[0].channelBuffers32[0] + start_sample, 0, sizeof(float) * (end_sample - start_sample));
+  //   memset(data.outputs[0].channelBuffers32[1] + start_sample, 0, sizeof(float) * (end_sample - start_sample));
+  //   return;
+  // }
 
   if(data.symbolicSampleSize == Vst::kSample32){
     if(!checkSoundFont(false)){
@@ -448,38 +451,13 @@ tresult PLUGIN_API Processor::process(Vst::ProcessData& data){
   //PerfMeter pm("Process", 8000);
   //printf("*\n");
 
-  // A zero-sample process call can flush parameter changes.
-  if(data.numSamples <= 0){
-    if(data.inputParameterChanges){
-      int32 count = data.inputParameterChanges->getParameterCount();
-      for(int32 index = 0; index < count; ++index){
-        Vst::IParamValueQueue* queue = data.inputParameterChanges->getParameterData(index);
-        if(!queue || (queue->getPointCount() <= 0))
-          continue;
-
-        int32 lastPoint = queue->getPointCount() - 1;
-        Vst::ParamValue value;
-        int32 sampleOffset;
-        if(queue->getPoint(lastPoint, sampleOffset, value) != kResultTrue)
-          continue;
-
-        switch(queue->getParameterId()){
-          case FluidSynthVSTParams::kBypassId:
-            mBypass = (value > 0.5);
-            break;
-          case FluidSynthVSTParams::kRootPrgId:
-            // Preserve existing program-change behavior.
-            break;
-          default:
-            break;
-        }
-      }
-    }
-    return kResultOk;
+  if(data.numSamples <= 0) {
+      playParChanges(data, -1, 0);
+      return kResultOk;
   }
 
   if(data.numOutputs <= 0)
-    return kResultOk;
+      return kResultOk;
 
   int32 curSample = -1;
   while(true){
@@ -1027,25 +1005,81 @@ void FluidSynthVST::PathAppend(char *szPath /* Out */, int32 size, const char *s
   strcat(szPath, szName);
 }
 
-#include <sys/types.h>
+#include <algorithm>
+#include <cstring>
 #include <dirent.h>
+#include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-void FluidSynthVST::Processor::scanSoundFonts(){
-  char szDirName[FILENAME_MAX];
-  GetPath(szDirName, FILENAME_MAX);
-  DIR *dir = opendir(szDirName);
-  if(dir){
-    struct dirent *de;
-    while((de = readdir(dir))){
-      if((strlen(de->d_name) > 4) && !memcmp(de->d_name + strlen(de->d_name) - 4, ".sf", 3)){
-	mSoundFontFiles.push_back( de->d_name ); // will be in file system encoding, hope it is UTF8
+static void scanSoundFontDir(const std::string &dir,
+                             std::vector<String> &files) {
+  DIR *dp = opendir(dir.c_str());
+  if (!dp) {
+    perror(dir.c_str());
+    return;
+  }
+
+  struct dirent *de;
+
+  while ((de = readdir(dp))) {
+    if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+      continue;
+
+    std::string path = dir + "/" + de->d_name;
+
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0)
+      continue; // stat follows symlinks
+
+    if (S_ISDIR(st.st_mode)) {
+      scanSoundFontDir(path, files);
+    } else if (S_ISREG(st.st_mode)) {
+      size_t len = strlen(de->d_name);
+
+      if (len >= 4 && !strcasecmp(de->d_name + len - 4, ".sf2")) {
+        // Store path relative to Contents/Resources.
+        // The loader appends this to the Resources path.
+        std::string relative = path;
+        files.push_back(relative.c_str());
       }
     }
-    closedir(dir);
-    std::sort(mSoundFontFiles.begin(), mSoundFontFiles.end());
   }
-  if(mSoundFontFiles.size() == 0)
-    mSoundFontFiles.push_back( "default.sf2" );
+
+  closedir(dp);
+}
+
+void FluidSynthVST::Processor::scanSoundFonts() {
+  char pluginPath[FILENAME_MAX] = {};
+  GetPath(pluginPath, FILENAME_MAX);
+
+  std::string resources = std::string(pluginPath) + "/../Resources";
+
+  // Normalize the path so it doesn't contain /../
+  char resolved[FILENAME_MAX];
+  if (realpath(resources.c_str(), resolved))
+    resources = resolved;
+
+  printf("FluidSynthVST: scanning recursively: %s\n", resources.c_str());
+
+  scanSoundFontDir(resources, mSoundFontFiles);
+
+  // Convert absolute paths to paths relative to Resources.
+  for (auto &file : mSoundFontFiles) {
+    std::string full = file.text8();
+    if (full.compare(0, resources.size(), resources) == 0 &&
+        full.size() > resources.size() && full[resources.size()] == '/') {
+      file = full.substr(resources.size() + 1).c_str();
+    }
+  }
+
+  std::sort(mSoundFontFiles.begin(), mSoundFontFiles.end());
+
+  printf("FluidSynthVST: found %zu SoundFonts\n", mSoundFontFiles.size());
+
+  if (mSoundFontFiles.empty())
+    mSoundFontFiles.push_back("default.sf2");
 }
 
 #include <pthread.h>

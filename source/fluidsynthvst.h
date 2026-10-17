@@ -21,6 +21,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdio>
 
 #include "base/source/fstring.h"
 #include "base/source/fbuffer.h"
