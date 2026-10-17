@@ -23,9 +23,9 @@
 #include <algorithm>
 #include <cstdio>
 
-#include "base/source/fstring.h"
 #include "base/source/fbuffer.h"
 #include "base/source/fstreamer.h"
+#include "base/source/fstring.h"
 #include "pluginterfaces/base/fplatform.h"
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/base/ustring.h"
@@ -59,22 +59,25 @@
 #define BUILD_NUMBER_STR "3"
 #define BUILD_NUMBER_INT 3
 
-#define FULL_VERSION_STR MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR "." BUILD_NUMBER_STR
+#define FULL_VERSION_STR                                                       \
+  MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR                 \
+                    "." BUILD_NUMBER_STR
 
 #define VERSION_STR MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR
 
-#define stringPluginName	"FluidSynth"
-#define stringSubCategory       "Instrument|Sampler"
+#define stringPluginName "FluidSynth"
+#define stringSubCategory "Instrument|Sampler"
 
-#define stringOriginalFilename	"fluidsynthvst.vst3"
-#define stringFileDescription	stringPluginName
+#define stringOriginalFilename "fluidsynthvst.vst3"
+#define stringFileDescription stringPluginName
 
-#define stringCompanyName	"AZ"
-#define stringCompanyWeb	"http://www.azslow.com"
-#define stringCompanyEmail	"mailto:admin@azslow.com"
+#define stringCompanyName "AZ"
+#define stringCompanyWeb "http://www.azslow.com"
+#define stringCompanyEmail "mailto:admin@azslow.com"
 
-#define stringLegalCopyright	"© 2019 AZ"
-#define stringLegalTrademarks	"VST is a trademark of Steinberg Media Technologies GmbH"
+#define stringLegalCopyright "© 2019 AZ"
+#define stringLegalTrademarks                                                  \
+  "VST is a trademark of Steinberg Media Technologies GmbH"
 
 namespace FluidSynthVST {
 using namespace Steinberg;
@@ -82,110 +85,114 @@ using namespace Steinberg;
 static const FUID ProcessorUID(0xe42276cd, 0x074c42e5, 0xb68a740f, 0x8565fc6f);
 static const FUID ControllerUID(0x43d1bc05, 0xf0f847a0, 0x85153e69, 0xe59c7455);
 
-enum  FluidSynthVSTParams : Vst::ParamID {
-    kBypassId = 0,
+enum FluidSynthVSTParams : Vst::ParamID {
+  kBypassId = 0,
 
-    // Vst::ProgramListID, but they are used as program change ParamID...
-    kRootPrgId,
-    kChPrgId,
-    kLastChPrgId = kChPrgId + 15,
+  // Vst::ProgramListID, but they are used as program change ParamID...
+  kRootPrgId,
+  kChPrgId,
+  kLastChPrgId = kChPrgId + 15,
 };
 
-
 class Controller : public Vst::EditControllerEx1, public Vst::IMidiMapping {
-  public:
-    tresult PLUGIN_API initialize(FUnknown* context) SMTG_OVERRIDE;
-    tresult PLUGIN_API setComponentState(IBStream* state) SMTG_OVERRIDE;
-    tresult PLUGIN_API setParamNormalized (Vst::ParamID tag, Vst::ParamValue value) SMTG_OVERRIDE;
+public:
+  tresult PLUGIN_API initialize(FUnknown *context) SMTG_OVERRIDE;
+  tresult PLUGIN_API setComponentState(IBStream *state) SMTG_OVERRIDE;
+  tresult PLUGIN_API setParamNormalized(Vst::ParamID tag,
+                                        Vst::ParamValue value) SMTG_OVERRIDE;
 
-    tresult PLUGIN_API getMidiControllerAssignment (int32 busIndex, int16 channel, Vst::CtrlNumber midiControllerNumber, Vst::ParamID& id/*out*/) SMTG_OVERRIDE;
+  tresult PLUGIN_API getMidiControllerAssignment(
+      int32 busIndex, int16 channel, Vst::CtrlNumber midiControllerNumber,
+      Vst::ParamID &id /*out*/) SMTG_OVERRIDE;
 
-    tresult PLUGIN_API getUnitByBus (Vst::MediaType type, Vst::BusDirection dir, int32 busIndex, int32 channel, Vst::UnitID& unitId /*out*/) SMTG_OVERRIDE;
+  tresult PLUGIN_API getUnitByBus(Vst::MediaType type, Vst::BusDirection dir,
+                                  int32 busIndex, int32 channel,
+                                  Vst::UnitID &unitId /*out*/) SMTG_OVERRIDE;
 
-    tresult PLUGIN_API notify (Vst::IMessage* message) SMTG_OVERRIDE;
+  tresult PLUGIN_API notify(Vst::IMessage *message) SMTG_OVERRIDE;
 
-    static FUnknown* createInstance (void*){
-      return (IEditController*)new Controller();
-    }
+  static FUnknown *createInstance(void *) {
+    return (IEditController *)new Controller();
+  }
 
-    //static FUID cid;
+  // static FUID cid;
 
-    OBJ_METHODS (Controller, Vst::EditControllerEx1)
-    DEFINE_INTERFACES
-      DEF_INTERFACE(Vst::IMidiMapping)
-    END_DEFINE_INTERFACES(Vst::EditControllerEx1)
-    REFCOUNT_METHODS(Vst::EditControllerEx1)
+  OBJ_METHODS(Controller, Vst::EditControllerEx1)
+  DEFINE_INTERFACES
+  DEF_INTERFACE(Vst::IMidiMapping)
+  END_DEFINE_INTERFACES(Vst::EditControllerEx1)
+  REFCOUNT_METHODS(Vst::EditControllerEx1)
 
-  private:
-    float mCurrentProgram;
+private:
+  float mCurrentProgram;
 };
 
 class Processor : public Vst::AudioEffect {
-  public:
-    Processor();
-    ~Processor();
-    tresult PLUGIN_API initialize(FUnknown* context) SMTG_OVERRIDE;
-    tresult PLUGIN_API setBusArrangements(Vst::SpeakerArrangement* inputs, int32 numIns,
-					  Vst::SpeakerArrangement* outputs, int32 numOuts) SMTG_OVERRIDE;
+public:
+  Processor();
+  ~Processor();
+  tresult PLUGIN_API initialize(FUnknown *context) SMTG_OVERRIDE;
+  tresult PLUGIN_API setBusArrangements(Vst::SpeakerArrangement *inputs,
+                                        int32 numIns,
+                                        Vst::SpeakerArrangement *outputs,
+                                        int32 numOuts) SMTG_OVERRIDE;
 
-    tresult PLUGIN_API canProcessSampleSize (int32 symbolicSampleSize) SMTG_OVERRIDE;
-    tresult PLUGIN_API setupProcessing (Vst::ProcessSetup& setup) SMTG_OVERRIDE;
-    tresult PLUGIN_API setActive (TBool state) SMTG_OVERRIDE;
-    tresult PLUGIN_API setProcessing (TBool state) SMTG_OVERRIDE;
-    tresult PLUGIN_API process(Vst::ProcessData& data) SMTG_OVERRIDE;
+  tresult PLUGIN_API canProcessSampleSize(int32 symbolicSampleSize)
+      SMTG_OVERRIDE;
+  tresult PLUGIN_API setupProcessing(Vst::ProcessSetup &setup) SMTG_OVERRIDE;
+  tresult PLUGIN_API setActive(TBool state) SMTG_OVERRIDE;
+  tresult PLUGIN_API setProcessing(TBool state) SMTG_OVERRIDE;
+  tresult PLUGIN_API process(Vst::ProcessData &data) SMTG_OVERRIDE;
 
-    tresult PLUGIN_API setState (IBStream* state) SMTG_OVERRIDE;
-    tresult PLUGIN_API getState (IBStream* state) SMTG_OVERRIDE;
+  tresult PLUGIN_API setState(IBStream *state) SMTG_OVERRIDE;
+  tresult PLUGIN_API getState(IBStream *state) SMTG_OVERRIDE;
 
-    tresult PLUGIN_API connect (IConnectionPoint* other) SMTG_OVERRIDE;
+  tresult PLUGIN_API connect(IConnectionPoint *other) SMTG_OVERRIDE;
 
-    static FUnknown* createInstance(void*){
-      return (Vst::IAudioProcessor*)new Processor ();
-    }
+  static FUnknown *createInstance(void *) {
+    return (Vst::IAudioProcessor *)new Processor();
+  }
 
-    void    syncedLoadSoundFont(); // public for thread function
+  void syncedLoadSoundFont(); // public for thread function
 
-  protected:
-    bool mBypass = false;
+protected:
+  bool mBypass = false;
 
-    fluid_settings_t* mSynthSettings;
-    fluid_synth_t* mSynth;
-    int32          mSoundFontID; // -1 when failed to load
+  fluid_settings_t *mSynthSettings;
+  fluid_synth_t *mSynth;
+  int32 mSoundFontID; // -1 when failed to load
 
-    using StringVector = std::vector<String>;
-    StringVector mSoundFontFiles; // in UTF-8
-    String       mSoundFontFile;
-    bool         mChangeSoundFont;
+  using StringVector = std::vector<String>;
+  StringVector mSoundFontFiles; // in UTF-8
+  String mSoundFontFile;
+  bool mChangeSoundFont;
 
-    float  *mAudioBufs[2];
-    int32   mAudioBufsSize;
+  float *mAudioBufs[2];
+  int32 mAudioBufsSize;
 
+  void writeAudio(Vst::ProcessData &data, int32 start_sample, int32 end_samle);
+  int32 nextOffset(Vst::ProcessData &data, int32 curSample);
+  void playParChanges(Vst::ProcessData &data, int32 curSample, int32 endSample);
+  void playEvents(Vst::ProcessData &data, int32 curSample, int32 endSample);
 
-    void  writeAudio(Vst::ProcessData& data, int32 start_sample, int32 end_samle);
-    int32 nextOffset(Vst::ProcessData& data, int32 curSample);
-    void  playParChanges(Vst::ProcessData& data, int32 curSample, int32 endSample);
-    void  playEvents(Vst::ProcessData& data, int32 curSample, int32 endSample);
+  void scanSoundFonts();
+  bool checkSoundFont(bool synced);
+  int getCurrentSoundFontIdx();
+  float getCurrentSoundFontNormalized();
+  void sendCurrentProgram();
+  void sendProgramList();
 
-    void  scanSoundFonts();
-    bool  checkSoundFont(bool synced);
-    int   getCurrentSoundFontIdx();
-    float getCurrentSoundFontNormalized();
-    void  sendCurrentProgram();
-    void  sendProgramList();
-
-  private:
+private:
 #ifdef WIN32
-    HANDLE     mLoadingThread;
-#else /* Linux */
-    pthread_t  mLoadingThread;
+  HANDLE mLoadingThread;
+#else  /* Linux */
+  pthread_t mLoadingThread;
 #endif /* platform */
-    String       mLoadedFile;
-    bool         mLoadingComplete;
+  String mLoadedFile;
+  bool mLoadingComplete;
 };
-
 
 void GetPath(char *szPath /* Out */, int32 size);
 void PathAppend(char *szPath /* Out */, int32 size, const char *szName);
 
-}
-
+} // namespace FluidSynthVST
