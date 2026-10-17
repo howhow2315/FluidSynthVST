@@ -18,21 +18,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <algorithm>
-
-#include "public.sdk/source/main/pluginfactory.h"
-#include "base/source/fstreamer.h"
-#include "base/source/fbuffer.h"
-#include "pluginterfaces/base/ibstream.h"
-#include "pluginterfaces/base/ustring.h"
-
-#include "../fluidsynthvst.h"
-
-#include "pluginterfaces/vst/ivstevents.h"
-#include "pluginterfaces/vst/ivstmidicontrollers.h"
-#include "pluginterfaces/vst/ivstparameterchanges.h"
-#include "pluginterfaces/vst/vsttypes.h"
-#include "pluginterfaces/vst/ivstattributes.h"
+#include "fluidsynthvst.h"
 
 namespace FluidSynthVST {
 using namespace Steinberg;
@@ -295,8 +281,15 @@ tresult PLUGIN_API Processor::setActive(TBool state){
 }
 
 void Processor::writeAudio(Vst::ProcessData& data, int32 start_sample, int32 end_sample){ // end_sample is exclusive
-  if((data.numSamples < end_sample) || (start_sample >= end_sample) || (data.numOutputs < 1) || (data.outputs[0].numChannels < 2))
+  if((data.numSamples < end_sample) || (start_sample >= end_sample) || (data.numOutputs < 1) || (data.outputs[0].numChannels < 2)) {
     return;
+  }
+
+  if(mBypass){
+    memset(data.outputs[0].channelBuffers32[0] + start_sample, 0, sizeof(float) * (end_sample - start_sample));
+    memset(data.outputs[0].channelBuffers32[1] + start_sample, 0, sizeof(float) * (end_sample - start_sample));
+    return;
+  }
 
   if(data.symbolicSampleSize == Vst::kSample32){
     if(!checkSoundFont(false)){
@@ -455,7 +448,37 @@ tresult PLUGIN_API Processor::process(Vst::ProcessData& data){
   //PerfMeter pm("Process", 8000);
   //printf("*\n");
 
-  if((data.numOutputs <= 0) || (data.numSamples <= 0))
+  // A zero-sample process call can flush parameter changes.
+  if(data.numSamples <= 0){
+    if(data.inputParameterChanges){
+      int32 count = data.inputParameterChanges->getParameterCount();
+      for(int32 index = 0; index < count; ++index){
+        Vst::IParamValueQueue* queue = data.inputParameterChanges->getParameterData(index);
+        if(!queue || (queue->getPointCount() <= 0))
+          continue;
+
+        int32 lastPoint = queue->getPointCount() - 1;
+        Vst::ParamValue value;
+        int32 sampleOffset;
+        if(queue->getPoint(lastPoint, sampleOffset, value) != kResultTrue)
+          continue;
+
+        switch(queue->getParameterId()){
+          case FluidSynthVSTParams::kBypassId:
+            mBypass = (value > 0.5);
+            break;
+          case FluidSynthVSTParams::kRootPrgId:
+            // Preserve existing program-change behavior.
+            break;
+          default:
+            break;
+        }
+      }
+    }
+    return kResultOk;
+  }
+
+  if(data.numOutputs <= 0)
     return kResultOk;
 
   int32 curSample = -1;

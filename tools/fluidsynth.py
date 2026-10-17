@@ -171,9 +171,7 @@ def build_fluidsynth(target, source, env) -> None:
 
     # Include the target in the build directory to prevent incompatible
     # CMake caches from being reused across platforms and architectures.
-    build_root = install.parent / "fluidsynth-build"
-    build = build_root / f"{platform}-{arch}"
-
+    build = Path(env["FLUIDSYNTH_BUILD"]).resolve()
     build_cmake(source_path, build, install, platform, arch)
 
     # Validate the actual artifacts declared by the SCons caller.

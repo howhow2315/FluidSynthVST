@@ -1,40 +1,37 @@
-cmake_minimum_required (VERSION 3.9)
+cmake_minimum_required(VERSION 3.13)
 
-# That will only work for Makefile and Ninja (single type in the tree build system)
-# For VS/XCode, CMAKE_CONFIGURATION_TYPES can be set to limit variants
-#set(CMAKE_BUILD_TYPE Release)
-#set(CMAKE_BUILD_TYPE Debug)
+project(FluidSynthVST VERSION 1.0.0)
 
-
-project(FluidSynthVST)
-
-set(CMAKE_POSITION_INDEPENDENT_CODE on)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(VST3_SDK.cmake)
 
-if ( WIN32 )
-include_directories(fluidsynth/include fluidsynth/build/include glib/include/glib-2.0 glib/lib/glib-2.0/include)
-link_directories(fluidsynth/build/src glib/lib)
-else ( WIN32 )
-include_directories(fluidsynth/include fluidsynth/build/include)
-link_directories(fluidsynth/build/src)
-endif ( WIN32 )
+# FluidSynth installed by the SCons dependency build.
+# Override this path when configuring another platform or architecture.
+if(NOT DEFINED FLUIDSYNTH_INSTALL_DIR)
+    if(WIN32)
+        set(_fluidsynth_default "${CMAKE_SOURCE_DIR}/build/deps/fluidsynth/windows-x86_64")
+    elseif(APPLE)
+        set(_fluidsynth_default "${CMAKE_SOURCE_DIR}/build/deps/fluidsynth/macos-arm64")
+    else()
+        set(_fluidsynth_default "${CMAKE_SOURCE_DIR}/build/deps/fluidsynth/linux-x86_64")
+    endif()
 
+    set(FLUIDSYNTH_INSTALL_DIR "${_fluidsynth_default}" CACHE PATH "FluidSynth installation prefix")
+endif()
 
-set(plug_sources
-    include/fluidsynthvst.h
-    source/fluidsynthvst.cpp
-)
+# Import FluidSynth's static library and its exported dependencies.
+find_package(FluidSynth CONFIG REQUIRED PATHS "${FLUIDSYNTH_INSTALL_DIR}/lib/cmake/fluidsynth" NO_DEFAULT_PATH)
+
+set(plug_sources source/fluidsynthvst.h source/fluidsynthvst.cpp)
 
 set(target fluidsynthvst)
 
 smtg_add_vst3plugin(${target} ${plug_sources})
 
-if ( WIN32 )
-target_link_libraries(${target} PRIVATE sdk libfluidsynth glib-2.0 gthread-2.0 intl ws2_32)
-else ( WIN32 )
-target_link_libraries(${target} PRIVATE sdk fluidsynth)
-endif ( WIN32 )
+target_link_libraries(${target} PRIVATE sdk FluidSynth::libfluidsynth)
 
-smtg_dump_plugin_package_variables(${target})
-cmake_print_variables(CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
+# smtg_dump_plugin_package_variables(${target})
+smtg_target_dump_plugin_package_variables(${target})
+
+cmake_print_variables(CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES FLUIDSYNTH_INSTALL_DIR)

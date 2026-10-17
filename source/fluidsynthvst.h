@@ -20,11 +20,23 @@
  */
 #pragma once
 
+#include <algorithm>
+
+#include "base/source/fstring.h"
+#include "base/source/fbuffer.h"
+#include "base/source/fstreamer.h"
 #include "pluginterfaces/base/fplatform.h"
+#include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/base/ustring.h"
+#include "pluginterfaces/vst/ivstattributes.h"
+#include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstmessage.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/vsttypes.h"
+#include "public.sdk/source/main/pluginfactory.h"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
-#include "pluginterfaces/vst/ivstmidicontrollers.h"
-#include "pluginterfaces/vst/ivstmessage.h"
 
 #include "fluidsynth.h"
 
